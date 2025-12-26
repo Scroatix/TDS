@@ -386,8 +386,6 @@ local function unlock_speed_tickets()
     if local_player.TimescaleTickets.Value >= 1 then
         if game.Players.LocalPlayer.PlayerGui.ReactUniversalHotbar.Frame.timescale.Lock.Visible then
             replicated_storage.RemoteFunction:InvokeServer('TicketsManager', 'UnlockTimeScale')
-            task.wait(1)
-            set_game_timescale(2)
         end
     else
         warn("no tickets left")
@@ -604,6 +602,8 @@ function TDS:VoteSkip()
 end
 
 function TDS:GameInfo(name, list)
+    list = list or {}
+
     if game_state ~= "GAME" then 
         return false 
     end
@@ -611,6 +611,14 @@ function TDS:GameInfo(name, list)
 
     cast_modifier_vote(list)
     select_map_override(name)
+end
+
+function TDS:UnlockTimeScale()
+    unlock_speed_tickets()
+end
+
+function TDS:TimeScale(val)
+    set_game_timescale(val)
 end
 
 function TDS:StartGame()
