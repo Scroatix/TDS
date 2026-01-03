@@ -11,32 +11,33 @@ TDSGui.Name = "TDSGui"
 TDSGui.Parent = guiParent
 TDSGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- TEMA WARNA (Deep Purple & Dark Theme)
+-- TEMA WARNA (Deep Purple Theme)
 local Theme = {
     Bg = Color3.fromRGB(15, 14, 22),
     Header = Color3.fromRGB(24, 20, 37),
     Accent = Color3.fromRGB(138, 85, 255),
     Text = Color3.fromRGB(255, 255, 255),
-    ConsoleBg = Color3.fromRGB(20, 18, 28)
+    ConsoleBg = Color3.fromRGB(20, 18, 28),
+    LogColor = Color3.fromRGB(180, 150, 255) -- Warna teks log mengikuti tema GUI
 }
 
 -- =======================
--- MAIN WINDOW (UKURAN LEBIH KECIL & PAS)
+-- MAIN WINDOW
 -- =======================
 local Main = Instance.new("Frame")
 Main.Name = "MainWindow"
 Main.Parent = TDSGui
-Main.Size = UDim2.new(0, 580, 0, 340) -- Ukuran lebih proporsional
+Main.Size = UDim2.new(0, 580, 0, 340)
 Main.Position = UDim2.new(0.5, -290, 0.5, -170)
 Main.BackgroundColor3 = Theme.Bg
 Main.BorderSizePixel = 0
 Main.Active = true
+Main.Visible = false -- DIMULAI DALAM KEADAAN TERTUTUP
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = Main
 
--- Stroke tipis di pinggir GUI agar lebih modern
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = Theme.Accent
 MainStroke.Thickness = 1.2
@@ -44,7 +45,7 @@ MainStroke.Transparency = 0.5
 MainStroke.Parent = Main
 
 -- =======================
--- HEADER (STYLE ELEGAN)
+-- HEADER
 -- =======================
 local Header = Instance.new("Frame")
 Header.Name = "Header"
@@ -57,7 +58,6 @@ local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 10)
 HeaderCorner.Parent = Header
 
--- Menutup bagian bawah corner header agar mulus
 local HeaderFix = Instance.new("Frame")
 HeaderFix.Size = UDim2.new(1, 0, 0.5, 0)
 HeaderFix.Position = UDim2.new(0, 0, 0.5, 0)
@@ -65,7 +65,6 @@ HeaderFix.BackgroundColor3 = Theme.Header
 HeaderFix.BorderSizePixel = 0
 HeaderFix.Parent = Header
 
--- TITLE (FONTO GOTHAM BOLD & TENGGAK)
 local Title = Instance.new("TextLabel")
 Title.Parent = Header
 Title.Size = UDim2.new(1, 0, 1, 0)
@@ -74,9 +73,8 @@ Title.Text = "Arma's Autostrat"
 Title.Font = Enum.Font.GothamBold
 Title.TextColor3 = Theme.Text
 Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Center -- Posisi Tengah
+Title.TextXAlignment = Enum.TextXAlignment.Center
 
--- Line bawah header
 local Line = Instance.new("Frame")
 Line.Size = UDim2.new(1, 0, 0, 1)
 Line.Position = UDim2.new(0, 0, 1, 0)
@@ -86,12 +84,12 @@ Line.BorderSizePixel = 0
 Line.Parent = Header
 
 -- =======================
--- CONSOLE AREA (PADDING PAS)
+-- CONSOLE AREA
 -- =======================
 local ConsoleFrame = Instance.new("Frame")
 ConsoleFrame.Parent = Main
-ConsoleFrame.Position = UDim2.new(0.05, 0, 0.2, 0) -- Jarak dari pinggir
-ConsoleFrame.Size = UDim2.new(0.9, 0, 0.72, 0) -- Lebar tidak kelebaran
+ConsoleFrame.Position = UDim2.new(0.05, 0, 0.22, 0)
+ConsoleFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
 ConsoleFrame.BackgroundColor3 = Theme.ConsoleBg
 ConsoleFrame.BorderSizePixel = 0
 
@@ -113,10 +111,9 @@ Console.AutomaticCanvasSize = Enum.AutomaticSize.Y
 local Layout = Instance.new("UIListLayout")
 Layout.Parent = Console
 Layout.Padding = UDim.new(0, 4)
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
 -- =======================
--- TOGGLE BUTTON (STYLISH)
+-- TOGGLE BUTTON
 -- =======================
 local Toggle = Instance.new("TextButton")
 Toggle.Parent = TDSGui
@@ -138,7 +135,7 @@ ToggleStroke.Color = Theme.Accent
 ToggleStroke.Thickness = 1.2
 ToggleStroke.Parent = Toggle
 
--- Animasi Hover Tombol
+-- Animasi Hover
 Toggle.MouseEnter:Connect(function()
     TweenService:Create(Toggle, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
 end)
@@ -147,7 +144,7 @@ Toggle.MouseLeave:Connect(function()
 end)
 
 -- Fungsi Toggle
-local visible = true
+local visible = false
 Toggle.MouseButton1Click:Connect(function()
     visible = not visible
     Main.Visible = visible
@@ -186,8 +183,9 @@ end
 makeDraggable(Main)
 makeDraggable(Toggle)
 
--- Export ke Global
+-- Export ke Global agar script autostrat bisa mengirim log
 shared.AutoStratGUI = {
     Console = Console,
-    Main = Main
+    Main = Main,
+    ThemeColor = Theme.LogColor -- Memberikan referensi warna teks log ke script utama
 }
