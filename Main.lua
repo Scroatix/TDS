@@ -42,6 +42,7 @@ local back_to_lobby_running = false
 local auto_pickups_running = false
 local auto_skip_running = false
 local anti_lag_running = false
+local match_start_sent = false
 
 local MaxLogs = 35
 local Logs = {}
@@ -269,6 +270,7 @@ end
 
 -- // lobby / teleporting
 local function send_to_lobby()
+    match_start_sent = false -- 🔁 reset untuk match berikutnya
     task.wait(1)
     local lobby_remote = game.ReplicatedStorage.Network.Teleport["RE:backToLobby"]
     lobby_remote:FireServer()
@@ -400,6 +402,9 @@ local function get_equipped_towers()
 end
 
 local function log_match_start()
+    if match_start_sent then return end
+    match_start_sent = true
+
     if not _G.SendWebhook then return end
 
     local start_payload = {
