@@ -945,6 +945,37 @@ function TDS:Loadout(...)
     return true
 end
 
+--[[
+    AUTO SKIP CONTROL
+    
+    Usage:
+        TDS:autoskip(true)   -- Enable auto skip
+        TDS:autoskip(false)  -- Disable auto skip
+    
+    Returns:
+        boolean - Current state of auto skip after the operation
+]]
+function TDS:autoskip(enable)
+    if enable == true then
+        _G.AutoSkip = true
+        start_auto_skip()
+        return true
+    elseif enable == false then
+        _G.AutoSkip = false
+        -- auto_skip_running will be set to false by the loop when it exits
+        return false
+    else
+        -- If no argument provided, return current state
+        return _G.AutoSkip or false
+    end
+end
+
+-- Alias for convenience (lowercase version)
+function TDS:AutoSkip(enable)
+    return self:autoskip(enable)
+end
+
+
 function TDS:Addons()
     local url = "https://api.junkie-development.de/api/v1/luascripts/public/57fe397f76043ce06afad24f07528c9f93e97730930242f57134d0b60a2d250b/download"
     local success, code = pcall(game.HttpGet, game, url)
