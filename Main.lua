@@ -454,6 +454,7 @@ local function start_match_progress_webhook()
 
             local payload = {
                 username = "Arma's Auto Grind",
+                avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
                 embeds = {{
                     title = "⏳ MATCH IN PROGRESS",
                     color = 0xf1c40f,
