@@ -170,6 +170,28 @@ if game_state == "GAME" then
     end)
 end
 
+-- // Function to get equipped towers string
+local function get_equipped_towers_string()
+    local remote = replicated_storage:WaitForChild("RemoteFunction")
+    
+    local success, result = pcall(function()
+        return remote:InvokeServer("Inventory", "GetTowerLoadout")
+    end)
+    
+    if success and type(result) == "table" then
+        local tower_names = {}
+        for _, tower_id in ipairs(result) do
+            table.insert(tower_names, tower_id)
+        end
+        
+        if #tower_names > 0 then
+            return table.concat(tower_names, ", ")
+        end
+    end
+    
+    return "_No towers detected_"
+end
+
 -- // check if remote returned valid
 local function check_res_ok(data)
     if data == true then return true end
@@ -304,85 +326,89 @@ local function handle_post_match()
             bonus_string = bonus_string .. "🎁 **" .. res.Amount .. " " .. res.Name .. "**\n"
         end
     else
-        bonus_string = "_No bonus rewards found._"
+        bonus_string = "_No bonus items this match_"
     end
 
-local post_data = {
-    username = "Arma's Auto Grind",
-    avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
-    embeds = {{
-        title = match.Status == "WIN"
-            and "🏆 TRIUMPH ACHIEVED"
-            or "💀 BAD RNG",
+    -- Send match result webhook
+    local match_result_payload = {
+        username = "Arma's Auto Grind",
+        avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg", -- replace with your Pinterest pfp link
+        embeds = {{
+            title = match.Status == "WIN" and "🏆 TRIUMPH ACHIEVED" or "💀 BAD RNG",
+            description =
+                "━━━━━━━━━━━━━━━━━━\n" ..
+                "**🎮 Tower Defense Simulator**\n" ..
+                "Automated match report\n" ..
+                "━━━━━━━━━━━━━━━━━━",
 
-        description =
-            "━━━━━━━━━━━━━━━━━━\n" ..
-            "**🎮 Tower Defense Simulator**\n" ..
-            "Automated match report\n" ..
-            "━━━━━━━━━━━━━━━━━━",
+            color = match.Status == "WIN" and 0x2ecc71 or 0xe74c3c,
 
-        color = match.Status == "WIN" and 0x2ecc71 or 0xe74c3c,
-
-        fields = {
-            {
-                name = "📊 Match Info",
-                value =
-                    "**Status:** " .. match.Status .. "\n" ..
-                    "**Wave:** " .. match.Wave .. "\n" ..
-                    "**Time:** " .. match.Time .. "\n" ..
-                    "**Level:** " .. match.Level,
-                inline = true
+            fields = {
+                {
+                    name = "📊 Match Info",
+                    value =
+                        "**Status:** " .. match.Status .. "\n" ..
+                        "**Wave:** " .. match.Wave .. "\n" ..
+                        "**Time:** " .. match.Time .. "\n" ..
+                        "**Level:** " .. match.Level,
+                    inline = true
+                },
+                {
+                    name = "🗺️ Game Details",
+                    value =
+                        "**Mode:** Survival\n" ..
+                        "**Map:** Auto Selected\n" ..
+                        "**Difficulty:** Hardcore",
+                    inline = true
+                },
+                {
+                    name = "💰 Rewards Gained",
+                    value =
+                        "🪙 **Coins:** +" .. match.Coins .. "\n" ..
+                        "💎 **Gems:** +" .. match.Gems .. "\n" ..
+                        "⭐ **XP:** +" .. match.XP,
+                    inline = true
+                },
+                {
+                    name = "🎁 Bonus Drops",
+                    value = bonus_string,
+                    inline = false
+                },
+                {
+                    name = "📈 Session Progress",
+                    value =
+                        "🪙 **Total Coins:** " .. current_total_coins .. "\n" ..
+                        "💎 **Total Gems:** " .. current_total_gems,
+                    inline = true
+                },
+                {
+                    name = "👤 Player",
+                    value =
+                        "**Name:** " .. local_player.Name .. "\n" ..
+                        "**User ID:** " .. local_player.UserId,
+                    inline = true
+                }
             },
-            {
-                name = "💰 Rewards",
-                value =
-                    "🪙 **Coins:** +" .. match.Coins .. "\n" ..
-                    "💎 **Gems:** +" .. match.Gems .. "\n" ..
-                    "⭐ **XP:** +" .. match.XP,
-                inline = true
-            },
-            {
-                name = "🎁 Bonus Items",
-                value = (#match.Others > 0 and bonus_string) or "_No bonus items_",
-                inline = false
-            },
-            {
-                name = "📈 Session Totals",
-                value =
-                    "🪙 **Total Coins:** " .. current_total_coins .. "\n" ..
-                    "💎 **Total Gems:** " .. current_total_gems,
-                inline = true
-            },
-            {
-                name = "👤 Player",
-                value =
-                    "**Name:** " .. local_player.Name .. "\n" ..
-                    "**User ID:** " .. local_player.UserId,
-                inline = true
-            }
-        },
 
-        footer = {
-            text = "Autostrat 2.0 By Arma • Match Result",
-            icon_url = "https://i.imgur.com/luDHRtf.jpeg"
-        },
+            footer = {
+                text = "Autostrat 2.0 By Arma • Match Result",
+                icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg" -- replace with same link as avatar_url
+            },
 
-        timestamp = DateTime.now():ToIsoDate()
-    }}
-}
-
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
 
     pcall(function()
         send_request({
             Url = _G.Webhook,
             Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = game:GetService("HttpService"):JSONEncode(post_data)
+            Body = game:GetService("HttpService"):JSONEncode(match_result_payload)
         })
     end)
 
     task.wait(1.5)
-
     send_to_lobby()
 end
 
@@ -391,57 +417,127 @@ local function log_match_start()
     if type(_G.Webhook) ~= "string" or _G.Webhook == "" then return end
     if _G.Webhook:find("YOUR%-WEBHOOK") then return end
     
-local start_payload = {
-    username = "Arma's Auto Grind",
-    avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
-    embeds = {{
-        title = "🚀 MATCH STARTED",
-        description =
-            "━━━━━━━━━━━━━━━━━━\n" ..
-            "**Tower Defense Simulator**\n" ..
-            "Automation initialized\n" ..
-            "━━━━━━━━━━━━━━━━━━",
+    -- Get equipped towers
+    local equipped_towers_string = get_equipped_towers_string()
+    
+    local match_start_payload = {
+        username = "Arma's Auto Grind",
+        avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg", -- replace with your Pinterest pfp link
+        embeds = {{
+            title = "🚀 MATCH STARTED",
+            description =
+                "━━━━━━━━━━━━━━━━━━\n" ..
+                "**🎮 Tower Defense Simulator**\n" ..
+                "AutoStrat deployment active\n" ..
+                "━━━━━━━━━━━━━━━━━━",
 
-        color = 0x3498db,
+            color = 0x3498db,
 
-        fields = {
-            {
-                name = "🪙 Starting Resources",
-                value =
-                    "🪙 **Coins:** " .. start_coins .. "\n" ..
-                    "💎 **Gems:** " .. start_gems,
-                inline = true
+            fields = {
+                {
+                    name = "🪙 Starting Resources",
+                    value =
+                        "🪙 **Coins:** " .. start_coins .. "\n" ..
+                        "💎 **Gems:** " .. start_gems,
+                    inline = true
+                },
+                {
+                    name = "⚙️ Script Status",
+                    value =
+                        "🟢 Running\n" ..
+                        "🧠 Automation Enabled",
+                    inline = true
+                },
+                {
+                    name = "💼 Loadout (Equipped Towers)",
+                    value = equipped_towers_string,
+                    inline = false
+                },
+                {
+                    name = "👤 Player",
+                    value =
+                        "**Name:** " .. local_player.Name .. "\n" ..
+                        "**User ID:** " .. local_player.UserId,
+                    inline = true
+                }
             },
-            {
-                name = "⚙️ Script Status",
-                value = "🟢 Running\n🧠 Automation Enabled",
-                inline = true
+
+            footer = {
+                text = "Autostrat 2.0 By Arma • Match Start",
+                icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg" -- replace with same link as avatar_url
             },
-            {
-                name = "👤 Player",
-                value =
-                    "**Name:** " .. local_player.Name .. "\n" ..
-                    "**User ID:** " .. local_player.UserId,
-                inline = true
-            }
-        },
 
-        footer = {
-            text = "Autostrat 2.0 By Arma • Match Start",
-            icon_url = "https://i.imgur.com/luDHRtf.jpeg"
-        },
-
-        timestamp = DateTime.now():ToIsoDate()
-    }}
-}
-
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
 
     pcall(function()
         send_request({
             Url = _G.Webhook,
             Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = game:GetService("HttpService"):JSONEncode(start_payload)
+            Body = game:GetService("HttpService"):JSONEncode(match_start_payload)
+        })
+    end)
+end
+
+-- Function to send ongoing match webhook
+local function send_ongoing_match_update()
+    if not _G.SendWebhook then return end
+    if type(_G.Webhook) ~= "string" or _G.Webhook == "" then return end
+    
+    local current_coins = local_player.Coins.Value
+    local current_gems = local_player.Gems.Value
+    
+    local ongoing_payload = {
+        username = "Arma's Auto Grind",
+        avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg", -- replace with your Pinterest pfp link
+        embeds = {{
+            title = "⏳ MATCH STILL IN PROGRESS",
+            description =
+                "━━━━━━━━━━━━━━━━━━\n" ..
+                "**Automated grinding is ongoing**\n" ..
+                "Please do not interrupt\n" ..
+                "━━━━━━━━━━━━━━━━━━",
+
+            color = 0xf1c40f,
+
+            fields = {
+                {
+                    name = "👤 Player",
+                    value = local_player.Name,
+                    inline = true
+                },
+                {
+                    name = "🪙 Current Resources",
+                    value =
+                        "🪙 **Coins:** " .. current_coins .. "\n" ..
+                        "💎 **Gems:** " .. current_gems,
+                    inline = true
+                }
+            },
+
+            footer = {
+                text = "Autostrat 2.0 By Arma • Match Ongoing",
+                icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg" -- replace with same link as avatar_url
+            },
+
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+task.spawn(function()
+    while match_running do
+        task.wait(480) -- 8 menit
+        sendWebhook(ongoing_payload)
+    end
+end)
+
+    pcall(function()
+        send_request({
+            Url = _G.Webhook,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = game:GetService("HttpService"):JSONEncode(ongoing_payload)
         })
     end)
 end
@@ -491,6 +587,10 @@ local function match_ready_up()
 
     run_vote_skip()
     log_match_start()
+    
+    -- Send ongoing match update after 30 seconds
+    task.wait(30)
+    send_ongoing_match_update()
 end
 
 local function cast_map_vote(map_id, pos_vec)
@@ -948,362 +1048,4 @@ function TDS:GameInfo(name, list)
     cast_modifier_vote(list)
 
     if marketplace_service:UserOwnsGamePassAsync(local_player.UserId, 10518590) then
-        select_map_override(name, "vip")
-        log("Selected map: " .. name, "green")
-    elseif is_map_available(name) then
-        select_map_override(name)
-    else
-        teleport_service:Teleport(3260590327, local_player)
-    end
-end
-
-function TDS:UnlockTimeScale()
-    unlock_speed_tickets()
-end
-
-function TDS:TimeScale(val)
-    set_game_timescale(val)
-end
-
-function TDS:StartGame()
-    lobby_ready_up()
-end
-
-function TDS:Ready()
-    if game_state ~= "GAME" then
-        return false 
-    end
-    match_ready_up()
-end
-
-function TDS:GetWave()
-    return get_current_wave()
-end
-
-function TDS:RestartGame()
-    trigger_restart()
-end
-
-function TDS:Place(t_name, px, py, pz, ...)
-    local args = {...}
-    local stack = false
-
-    if args[#args] == "stack" or args[#args] == true then
-        py = py+20
-    end
-    if game_state ~= "GAME" then
-        return false 
-    end
-    
-    local existing = {}
-    for _, child in ipairs(workspace.Towers:GetChildren()) do
-        for _, sub_child in ipairs(child:GetChildren()) do
-            if sub_child.Name == "Owner" and sub_child.Value == local_player.UserId then
-                existing[child] = true
-                break
-            end
-        end
-    end
-
-    do_place_tower(t_name, Vector3.new(px, py, pz))
-    log("Placing tower: " .. t_name, "green")
-
-    local new_t
-    repeat
-        for _, child in ipairs(workspace.Towers:GetChildren()) do
-            if not existing[child] then
-                for _, sub_child in ipairs(child:GetChildren()) do
-                    if sub_child.Name == "Owner" and sub_child.Value == local_player.UserId then
-                        new_t = child
-                        break
-                    end
-                end
-            end
-            if new_t then break end
-        end
-        task.wait(0.05)
-    until new_t
-
-    table.insert(self.placed_towers, new_t)
-    return #self.placed_towers
-end
-
-function TDS:Upgrade(idx, p_id)
-    local t = self.placed_towers[idx]
-    if t then
-        do_upgrade_tower(t, p_id or 1)
-        log("Upgrading tower index: " .. idx, "green")
-        upgrade_history[idx] = (upgrade_history[idx] or 0) + 1
-    end
-end
-
-function TDS:SetTarget(idx, target_type, req_wave)
-    if req_wave then
-        repeat task.wait(0.5) until get_current_wave() >= req_wave
-    end
-
-    local t = self.placed_towers[idx]
-    if not t then return end
-
-    pcall(function()
-        remote_func:InvokeServer("Troops", "Target", "Set", {
-            Troop = t,
-            Target = target_type
-        })
-        log("Set target for tower index " .. idx .. " to " .. target_type, "green")
-    end)
-end
-
-function TDS:Sell(idx, req_wave)
-    if req_wave then
-        repeat task.wait(0.5) until get_current_wave() >= req_wave
-    end
-    local t = self.placed_towers[idx]
-    if t and do_sell_tower(t) then
-        return true
-    end
-    return false
-end
-
-function TDS:SellAll(req_wave)
-    task.spawn(function()
-        if req_wave then
-            repeat task.wait(0.5) until get_current_wave() >= req_wave
-        end
-
-        local towers_copy = {unpack(self.placed_towers)}
-        for idx, t in ipairs(towers_copy) do
-            if do_sell_tower(t) then
-                for i, orig_t in ipairs(self.placed_towers) do
-                    if orig_t == t then
-                        table.remove(self.placed_towers, i)
-                        break
-                    end
-                end
-            end
-        end
-
-        return true
-    end)
-end
-
-function TDS:Ability(idx, name, data, loop)
-    local t = self.placed_towers[idx]
-    if not t then return false end
-    log("Activating ability '" .. name .. "' for tower index: " .. idx, "green")
-    return do_activate_ability(t, name, data, loop)
-end
-
-function TDS:AutoChain(...)
-    local tower_indices = {...}
-    if #tower_indices == 0 then return end
-
-    local running = true
-
-    task.spawn(function()
-        local i = 1
-        while running do
-            local idx = tower_indices[i]
-            local tower = TDS.placed_towers[idx]
-
-            if tower then
-                do_activate_ability(tower, "Call Of Arms")
-            end
-
-            local hotbar = player_gui.ReactUniversalHotbar.Frame
-            local timescale = hotbar:FindFirstChild("timescale")
-
-            if timescale then
-                if timescale:FindFirstChild("Lock") then
-                    task.wait(10.5)
-                else
-                    task.wait(5.5)
-                end
-            else
-                task.wait(10.5)
-            end
-
-            i += 1
-            if i > #tower_indices then
-                i = 1
-            end
-        end
-    end)
-
-    return function()
-        running = false
-    end
-end
-
-function TDS:SetOption(idx, name, val, req_wave)
-    local t = self.placed_towers[idx]
-    if t then
-        log("Setting option '" .. name .. "' for tower index: " .. idx, "green")
-        return do_set_option(t, name, val, req_wave)
-    end
-    return false
-end
-
--- // misc utility
-local function is_void_charm(obj)
-    return math.abs(obj.Position.Y) > 999999
-end
-
-local function get_root()
-    local char = local_player.Character
-    return char and char:FindFirstChild("HumanoidRootPart")
-end
-
-local function start_auto_pickups()
-    if auto_pickups_running or not _G.AutoPickups then return end
-    auto_pickups_running = true
-
-    task.spawn(function()
-        while _G.AutoPickups do
-            local folder = workspace:FindFirstChild("Pickups")
-            local hrp = get_root()
-
-            if folder and hrp then
-                for _, item in ipairs(folder:GetChildren()) do
-                    if not _G.AutoPickups then break end
-
-                    if item:IsA("MeshPart") and (item.Name == "SnowCharm" or item.Name == "Lorebook") then
-                        if not is_void_charm(item) then
-                            local old_pos = hrp.CFrame
-                            hrp.CFrame = item.CFrame * CFrame.new(0, 3, 0)
-                            task.wait(0.2)
-                            hrp.CFrame = old_pos
-                            task.wait(0.3)
-                        end
-                    end
-                end
-            end
-
-            task.wait(1)
-        end
-
-        auto_pickups_running = false
-    end)
-end
-
-local function start_auto_skip()
-    if auto_skip_running or not _G.AutoSkip then return end
-    auto_skip_running = true
-
-    task.spawn(function()
-        while _G.AutoSkip do
-            local skip_visible =
-                player_gui:FindFirstChild("ReactOverridesVote")
-                and player_gui.ReactOverridesVote:FindFirstChild("Frame")
-                and player_gui.ReactOverridesVote.Frame:FindFirstChild("votes")
-                and player_gui.ReactOverridesVote.Frame.votes:FindFirstChild("vote")
-
-            if skip_visible and skip_visible.Position == UDim2.new(0.5, 0, 0.5, 0) then
-                run_vote_skip()
-            end
-
-            task.wait(1)
-        end
-
-        auto_skip_running = false
-    end)
-end
-
-local function start_back_to_lobby()
-    if back_to_lobby_running then return end
-    back_to_lobby_running = true
-
-    task.spawn(function()
-        while true do
-            pcall(function()
-                handle_post_match()
-            end)
-            task.wait(5)
-        end
-        back_to_lobby_running = false
-    end)
-end
-
-local function start_anti_lag()
-    if anti_lag_running then return end
-    anti_lag_running = true
-
-    task.spawn(function()
-        while _G.AntiLag do
-            local towers_folder = workspace:FindFirstChild("Towers")
-            local client_units = workspace:FindFirstChild("ClientUnits")
-            local enemies = workspace:FindFirstChild("NPCs")
-
-            if towers_folder then
-                for _, tower in ipairs(towers_folder:GetChildren()) do
-                    local anims = tower:FindFirstChild("Animations")
-                    local weapon = tower:FindFirstChild("Weapon")
-                    local projectiles = tower:FindFirstChild("Projectiles")
-                    
-                    if anims then anims:Destroy() end
-                    if projectiles then projectiles:Destroy() end
-                    if weapon then weapon:Destroy() end
-                end
-            end
-            if client_units then
-                for _, unit in ipairs(client_units:GetChildren()) do
-                    unit:Destroy()
-                end
-            end
-            if enemies then
-                for _, npc in ipairs(enemies:GetChildren()) do
-                    npc:Destroy()
-                end
-            end
-            task.wait(0.5)
-        end
-        anti_lag_running = false
-    end)
-end
-
-local function start_anti_afk()
-    local Players = game:GetService("Players")
-    local GC = getconnections and getconnections or get_signal_cons
-
-    if GC then
-        for i, v in pairs(GC(Players.LocalPlayer.Idled)) do
-            if v.Disable then
-                v:Disable()
-            elseif v.Disconnect then
-                v:Disconnect()
-            end
-        end
-    else
-        Players.LocalPlayer.Idled:Connect(function()
-            local VirtualUser = game:GetService("VirtualUser")
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end)
-    end
-
-    local ANTIAFK = Players.LocalPlayer.Idled:Connect(function()
-        local VirtualUser = game:GetService("VirtualUser")
-        VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-    end)
-end
-
-local function start_rejoin_on_disconnect()
-    task.spawn(function()
-        game.Players.PlayerRemoving:connect(function (plr)
-            if plr == game.Players.LocalPlayer then
-                game:GetService('TeleportService'):Teleport(3260590327, plr)
-            end
-        end)
-    end)
-end
-
-start_back_to_lobby()
-start_auto_skip()
-start_auto_pickups()
-start_anti_lag()
-start_anti_afk()
-start_rejoin_on_disconnect()
-
-return TDS
+        select_map_override
