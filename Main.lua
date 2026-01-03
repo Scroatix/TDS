@@ -313,7 +313,7 @@ local post_data = {
     username = "Arma's Auto Grind",
     avatar_url = "https://i.imgur.com/luDHRtf.jpeg", -- ganti ke link pinterest direct
     embeds = {{
-        title = match.Status == "WIN" and "🏆 TRIUMPH ACHIEVED" or "💀 BAD RNG",
+        title = match.Status == "WIN" and "🏆 W WIN BOYS" or "💀 BAD RNG",
         description =
             "━━━━━━━━━━━━━━━━━━\n" ..
             "**🎮 Tower Defense Simulator**\n" ..
