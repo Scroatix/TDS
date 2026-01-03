@@ -1,6 +1,6 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Sources/GuiSource.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Scroatix/TDS/refs/heads/main/GUI.lua"))()
 local Console = shared.AutoStratGUI.Console
 
 local function identify_game_state()
