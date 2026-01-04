@@ -1,191 +1,252 @@
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local guiParent = gethui and gethui() or game:GetService("CoreGui")
+-- SERVICES
+local user_input_service = game:GetService("UserInputService")
+local http_service = game:GetService("HttpService")
+local run_service = game:GetService("RunService")
+local local_player = game.Players.LocalPlayer
+local gui_parent = gethui and gethui() or game:GetService("CoreGui")
 
--- Hapus versi lama jika ada
-local old = guiParent:FindFirstChild("TDSGui")
-if old then old:Destroy() end
+-- REMOVE OLD GUI
+local old_gui = gui_parent:FindFirstChild("TDSGui")
+if old_gui then old_gui:Destroy() end
 
-local TDSGui = Instance.new("ScreenGui")
-TDSGui.Name = "TDSGui"
-TDSGui.Parent = guiParent
-TDSGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- PURPLE THEME
+local PURPLE_MAIN   = Color3.fromRGB(120, 80, 255)
+local PURPLE_DARK   = Color3.fromRGB(90, 60, 200)
+local PURPLE_BG     = Color3.fromRGB(22, 18, 35)
+local PURPLE_BG2    = Color3.fromRGB(30, 24, 50)
+local PURPLE_STROKE = Color3.fromRGB(150, 120, 255)
 
--- TEMA WARNA (Deep Purple Theme)
-local Theme = {
-    Bg = Color3.fromRGB(15, 14, 22),
-    Header = Color3.fromRGB(24, 20, 37),
-    Accent = Color3.fromRGB(138, 85, 255),
-    Text = Color3.fromRGB(255, 255, 255),
-    ConsoleBg = Color3.fromRGB(20, 18, 28),
-    LogColor = Color3.fromRGB(180, 150, 255) -- Warna teks log mengikuti tema GUI
-}
+-- CONFIG
+local CONFIG_FILE = "ADS_Config.json"
 
--- =======================
--- MAIN WINDOW
--- =======================
-local Main = Instance.new("Frame")
-Main.Name = "MainWindow"
-Main.Parent = TDSGui
-Main.Size = UDim2.new(0, 580, 0, 340)
-Main.Position = UDim2.new(0.5, -290, 0.5, -170)
-Main.BackgroundColor3 = Theme.Bg
-Main.BorderSizePixel = 0
-Main.Active = true
-Main.Visible = false -- DIMULAI DALAM KEADAAN TERTUTUP
+local function save_settings()
+    writefile(CONFIG_FILE, http_service:JSONEncode({
+        AutoSkip = _G.AutoSkip,
+        AutoPickups = _G.AutoPickups,
+        AutoChain = _G.AutoChain,
+        AutoDJ = _G.AutoDJ,
+        AntiLag = _G.AntiLag,
+        ClaimRewards = _G.ClaimRewards,
+        SendWebhook = _G.SendWebhook,
+        WebhookURL = _G.WebhookURL
+    }))
+end
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = Main
+local function load_settings()
+    local default = {
+        AutoSkip = false,
+        AutoPickups = false,
+        AutoChain = false,
+        AutoDJ = false,
+        AntiLag = false,
+        ClaimRewards = false,
+        SendWebhook = false,
+        WebhookURL = ""
+    }
+    if isfile(CONFIG_FILE) then
+        local ok, data = pcall(function()
+            return http_service:JSONDecode(readfile(CONFIG_FILE))
+        end)
+        if ok then
+            for k,v in pairs(data) do _G[k] = v end
+            return
+        end
+    end
+    for k,v in pairs(default) do _G[k] = v end
+end
 
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Theme.Accent
-MainStroke.Thickness = 1.2
-MainStroke.Transparency = 0.5
-MainStroke.Parent = Main
+load_settings()
 
--- =======================
+-- GUI
+local tds_gui = Instance.new("ScreenGui", gui_parent)
+tds_gui.Name = "TDSGui"
+tds_gui.ResetOnSpawn = false
+
+local main_frame = Instance.new("Frame", tds_gui)
+main_frame.Size = UDim2.new(0, 380, 0, 320)
+main_frame.Position = UDim2.new(0.5, -190, 0.5, -160)
+main_frame.BackgroundColor3 = PURPLE_BG
+main_frame.BorderSizePixel = 0
+main_frame.Active = true
+Instance.new("UICorner", main_frame).CornerRadius = UDim.new(0, 10)
+
+local stroke = Instance.new("UIStroke", main_frame)
+stroke.Color = PURPLE_STROKE
+stroke.Thickness = 1.5
+
 -- HEADER
--- =======================
-local Header = Instance.new("Frame")
-Header.Name = "Header"
-Header.Parent = Main
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Theme.Header
-Header.BorderSizePixel = 0
+local header_frame = Instance.new("Frame", main_frame)
+header_frame.Size = UDim2.new(1,0,0,45)
+header_frame.BackgroundColor3 = PURPLE_BG2
+header_frame.BorderSizePixel = 0
+header_frame.ZIndex = 2
+Instance.new("UICorner", header_frame).CornerRadius = UDim.new(0,10)
 
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 10)
-HeaderCorner.Parent = Header
+local header_mask = Instance.new("Frame", header_frame)
+header_mask.Size = UDim2.new(1,0,0,10)
+header_mask.Position = UDim2.new(0,0,1,-10)
+header_mask.BackgroundColor3 = PURPLE_BG2
+header_mask.BorderSizePixel = 0
+header_mask.ZIndex = 1
 
-local HeaderFix = Instance.new("Frame")
-HeaderFix.Size = UDim2.new(1, 0, 0.5, 0)
-HeaderFix.Position = UDim2.new(0, 0, 0.5, 0)
-HeaderFix.BackgroundColor3 = Theme.Header
-HeaderFix.BorderSizePixel = 0
-HeaderFix.Parent = Header
+local title_label = Instance.new("TextLabel", header_frame)
+title_label.Size = UDim2.new(1,-50,1,0)
+title_label.Position = UDim2.new(0,15,0,0)
+title_label.BackgroundTransparency = 1
+title_label.Text = "Arma's Autostrat"
+title_label.Font = Enum.Font.GothamBold
+title_label.TextSize = 16
+title_label.TextXAlignment = Left
+title_label.TextColor3 = Color3.new(1,1,1)
+title_label.TextStrokeTransparency = 0.6
+title_label.ZIndex = 3
 
-local Title = Instance.new("TextLabel")
-Title.Parent = Header
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Arma's Autostrat"
-Title.Font = Enum.Font.GothamBold
-Title.TextColor3 = Theme.Text
-Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Center
+-- TAB BAR
+local tab_bar = Instance.new("Frame", main_frame)
+tab_bar.Size = UDim2.new(1,0,0,30)
+tab_bar.Position = UDim2.new(0,0,0,45)
+tab_bar.BackgroundColor3 = Color3.fromRGB(35,28,60)
+tab_bar.BorderSizePixel = 0
 
-local Line = Instance.new("Frame")
-Line.Size = UDim2.new(1, 0, 0, 1)
-Line.Position = UDim2.new(0, 0, 1, 0)
-Line.BackgroundColor3 = Theme.Accent
-Line.BackgroundTransparency = 0.4
-Line.BorderSizePixel = 0
-Line.Parent = Header
+local tab_layout = Instance.new("UIListLayout", tab_bar)
+tab_layout.FillDirection = Horizontal
 
--- =======================
--- CONSOLE AREA
--- =======================
-local ConsoleFrame = Instance.new("Frame")
-ConsoleFrame.Parent = Main
-ConsoleFrame.Position = UDim2.new(0.05, 0, 0.22, 0)
-ConsoleFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
-ConsoleFrame.BackgroundColor3 = Theme.ConsoleBg
-ConsoleFrame.BorderSizePixel = 0
+local function tab_btn(text, active)
+    local b = Instance.new("TextButton", tab_bar)
+    b.Size = UDim2.new(0.5,0,1,0)
+    b.BackgroundTransparency = 1
+    b.Text = text
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 11
+    b.TextColor3 = active and Color3.new(1,1,1) or Color3.fromRGB(160,160,180)
+    return b
+end
 
-local ConsoleCorner = Instance.new("UICorner")
-ConsoleCorner.CornerRadius = UDim.new(0, 8)
-ConsoleCorner.Parent = ConsoleFrame
+local logger_btn = tab_btn("LOGGER", true)
+local settings_btn = tab_btn("SETTINGS", false)
 
-local Console = Instance.new("ScrollingFrame")
-Console.Parent = ConsoleFrame
-Console.Size = UDim2.new(1, -20, 1, -20)
-Console.Position = UDim2.new(0, 10, 0, 10)
-Console.BackgroundTransparency = 1
-Console.BorderSizePixel = 0
-Console.ScrollBarThickness = 2
-Console.ScrollBarImageColor3 = Theme.Accent
-Console.CanvasSize = UDim2.new(0,0,0,0)
-Console.AutomaticCanvasSize = Enum.AutomaticSize.Y
+-- CONTENT
+local content_holder = Instance.new("Frame", main_frame)
+content_holder.Size = UDim2.new(1,0,1,-110)
+content_holder.Position = UDim2.new(0,0,0,75)
+content_holder.BackgroundTransparency = 1
 
-local Layout = Instance.new("UIListLayout")
-Layout.Parent = Console
-Layout.Padding = UDim.new(0, 4)
+local logger_page = Instance.new("Frame", content_holder)
+logger_page.Size = UDim2.new(1,0,1,0)
+logger_page.BackgroundTransparency = 1
 
--- =======================
--- TOGGLE BUTTON
--- =======================
-local Toggle = Instance.new("TextButton")
-Toggle.Parent = TDSGui
-Toggle.Size = UDim2.new(0, 130, 0, 38)
-Toggle.Position = UDim2.new(0, 20, 1, -58)
-Toggle.BackgroundColor3 = Theme.Header
-Toggle.Text = "Toggle Menu"
-Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 13
-Toggle.TextColor3 = Theme.Text
-Toggle.AutoButtonColor = false
+local log_container = Instance.new("Frame", logger_page)
+log_container.Size = UDim2.new(1,-24,1,-10)
+log_container.Position = UDim2.new(0,12,0,5)
+log_container.BackgroundColor3 = Color3.fromRGB(18,14,30)
+Instance.new("UICorner", log_container).CornerRadius = UDim.new(0,8)
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 8)
-ToggleCorner.Parent = Toggle
+local console_scrolling = Instance.new("ScrollingFrame", log_container)
+console_scrolling.Size = UDim2.new(1,-10,1,-10)
+console_scrolling.Position = UDim2.new(0,5,0,5)
+console_scrolling.BackgroundTransparency = 1
+console_scrolling.BorderSizePixel = 0
+console_scrolling.ScrollBarThickness = 2
+console_scrolling.CanvasSize = UDim2.new(0,0,0,0)
+Instance.new("UIListLayout", console_scrolling).Padding = UDim.new(0,4)
 
-local ToggleStroke = Instance.new("UIStroke")
-ToggleStroke.Color = Theme.Accent
-ToggleStroke.Thickness = 1.2
-ToggleStroke.Parent = Toggle
+-- SETTINGS PAGE
+local settings_page = Instance.new("Frame", content_holder)
+settings_page.Size = UDim2.new(1,0,1,0)
+settings_page.Visible = false
+settings_page.BackgroundTransparency = 1
 
--- Animasi Hover
-Toggle.MouseEnter:Connect(function()
-    TweenService:Create(Toggle, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
-end)
-Toggle.MouseLeave:Connect(function()
-    TweenService:Create(Toggle, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Header}):Play()
-end)
+local settings_scrolling = Instance.new("ScrollingFrame", settings_page)
+settings_scrolling.Size = UDim2.new(1,-24,1,-10)
+settings_scrolling.Position = UDim2.new(0,12,0,5)
+settings_scrolling.CanvasSize = UDim2.new(0,0,0,400)
+settings_scrolling.ScrollBarThickness = 2
+settings_scrolling.BackgroundTransparency = 1
+Instance.new("UIListLayout", settings_scrolling).Padding = UDim.new(0,6)
 
--- Fungsi Toggle
-local visible = false
-Toggle.MouseButton1Click:Connect(function()
-    visible = not visible
-    Main.Visible = visible
-end)
+-- TOGGLE CREATOR
+local function create_toggle(text, var)
+    local bg = Instance.new("Frame", settings_scrolling)
+    bg.Size = UDim2.new(1,-10,0,35)
+    bg.BackgroundColor3 = Color3.fromRGB(35,28,60)
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(0,6)
 
--- =======================
--- DRAG SYSTEM
--- =======================
-local function makeDraggable(obj)
-    local dragging, dragInput, dragStart, startPos
-    obj.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = obj.Position
-        end
-    end)
-    obj.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-    UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    obj.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
+    local lbl = Instance.new("TextLabel", bg)
+    lbl.Size = UDim2.new(1,-50,1,0)
+    lbl.Position = UDim2.new(0,12,0,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(220,220,230)
+    lbl.Font = Enum.Font.GothamSemibold
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Left
+
+    local btn = Instance.new("TextButton", bg)
+    btn.Size = UDim2.new(0,38,0,20)
+    btn.Position = UDim2.new(1,-48,0.5,-10)
+    btn.Text = ""
+    btn.BackgroundColor3 = _G[var] and PURPLE_MAIN or Color3.fromRGB(70,60,90)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1,0)
+
+    local circle = Instance.new("Frame", btn)
+    circle.Size = UDim2.new(0,14,0,14)
+    circle.Position = _G[var] and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7)
+    circle.BackgroundColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", circle).CornerRadius = UDim.new(1,0)
+
+    btn.MouseButton1Click:Connect(function()
+        _G[var] = not _G[var]
+        btn.BackgroundColor3 = _G[var] and PURPLE_MAIN or Color3.fromRGB(70,60,90)
+        circle:TweenPosition(_G[var] and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7),"Out","Quad",0.15,true)
+        save_settings()
     end)
 end
 
-makeDraggable(Main)
-makeDraggable(Toggle)
+create_toggle("Auto Skip Waves","AutoSkip")
+create_toggle("Auto Collect Pickups","AutoPickups")
+create_toggle("Auto Chain","AutoChain")
+create_toggle("Auto DJ Booth","AutoDJ")
+create_toggle("Enable Anti-Lag","AntiLag")
+create_toggle("Claim Rewards","ClaimRewards")
+create_toggle("Send Discord Webhook","SendWebhook")
 
--- Export ke Global agar script autostrat bisa mengirim log
+-- TAB SWITCH
+local function switch(tab)
+    local log = tab=="LOGGER"
+    logger_page.Visible = log
+    settings_page.Visible = not log
+    logger_btn.TextColor3 = log and Color3.new(1,1,1) or Color3.fromRGB(160,160,180)
+    settings_btn.TextColor3 = not log and Color3.new(1,1,1) or Color3.fromRGB(160,160,180)
+end
+
+logger_btn.MouseButton1Click:Connect(function() switch("LOGGER") end)
+settings_btn.MouseButton1Click:Connect(function() switch("SETTINGS") end)
+
+-- DRAG
+local dragging, drag_start, start_pos, target = false
+header_frame.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        drag_start = i.Position
+        start_pos = main_frame.Position
+        i.Changed:Connect(function()
+            if i.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+user_input_service.InputChanged:Connect(function(i)
+    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local d = i.Position - drag_start
+        target = UDim2.new(start_pos.X.Scale,start_pos.X.Offset+d.X,start_pos.Y.Scale,start_pos.Y.Offset+d.Y)
+    end
+end)
+
+run_service.RenderStepped:Connect(function()
+    if target then main_frame.Position = main_frame.Position:Lerp(target,0.25) end
+end)
+
+-- EXPORT
 shared.AutoStratGUI = {
-    Console = Console,
-    Main = Main,
-    ThemeColor = Theme.LogColor -- Memberikan referensi warna teks log ke script utama
+    Console = console_scrolling
 }
