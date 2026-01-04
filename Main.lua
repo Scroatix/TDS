@@ -1,28 +1,14 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
--- services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService = game:GetService("TeleportService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local HttpService = game:GetService("HttpService")
-
-local local_player = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local player_gui = local_player:WaitForChild("PlayerGui")
-
--- http
-local send_request = request or http_request or httprequest or (GetDevice and GetDevice().request)
-if not send_request then
-    warn("failure: no http function")
-    return
-end
-
 local function identify_game_state()
-    local gui = local_player:WaitForChild("PlayerGui")
+    local players = game:GetService("Players")
+    local temp_player = players.LocalPlayer or players.PlayerAdded:Wait()
+    local temp_gui = temp_player:WaitForChild("PlayerGui")
+    
     while true do
-        if gui:FindFirstChild("LobbyGui") then
+        if temp_gui:FindFirstChild("LobbyGui") then
             return "LOBBY"
-        elseif gui:FindFirstChild("GameGui") then
+        elseif temp_gui:FindFirstChild("GameGui") then
             return "GAME"
         end
         task.wait(1)
@@ -31,12 +17,12 @@ end
 
 local game_state = identify_game_state()
 
-local function get_current_wave()
-    local label = local_player.PlayerGui
-        .ReactGameTopGameDisplay.Frame.wave.container.value
+local send_request = request or http_request or httprequest
+    or GetDevice and GetDevice().request
 
-    local wave = label.Text:match("(%d+)")
-    return tonumber(wave) or 0
+if not send_request then 
+    warn("failure: no http function") 
+    return 
 end
 
 -- // services & main refs
@@ -103,7 +89,7 @@ local upgrade_history = {}
 shared.TDS_Table = TDS
 
 -- // ui
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Scroatix/TDS/refs/heads/main/GUI.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Scroatix/TDS/refs/heads/main/MAIN"))()
 local Console = shared.AutoStratGUI.Console
 
 shared.AutoStratGUI.Status(tostring(game_state))
@@ -193,15 +179,15 @@ local function log(text, color)
 end
 
 -- // currency tracking
-local start_coins, current_total_coins = 0, 0
-local start_gems, current_total_gems = 0, 0
-
+local start_coins, current_total_coins, start_gems, current_total_gems = 0, 0, 0, 0
 if game_state == "GAME" then
-    repeat task.wait() until local_player:FindFirstChild("Coins")
-    start_coins = local_player.Coins.Value
-    start_gems = local_player.Gems.Value
-    current_total_coins = start_coins
-    current_total_gems = start_gems
+    pcall(function()
+        repeat task.wait(1) until local_player:FindFirstChild("Coins")
+        start_coins = local_player.Coins.Value
+        current_total_coins = start_coins
+        start_gems = local_player.Gems.Value
+        current_total_gems = start_gems
+    end)
 end
 
 -- // check if remote returned valid
@@ -308,34 +294,6 @@ local function send_to_lobby()
     lobby_remote:FireServer()
 end
 
-local function build_ongoing_payload()
-    return {
-        username = "TDS AutoStrat",
-        embeds = {{
-            title = "⏳ MATCH IN PROGRESS",
-            color = 0xf1c40f,
-            fields = {
-                {
-                    name = "📊 Progress",
-                    value =
-                        "**Wave:** " .. get_current_wave() .. "\n" ..
-                        "**Coins:** " .. current_total_coins .. "\n" ..
-                        "**Gems:** " .. current_total_gems,
-                    inline = true
-                },
-                {
-                    name = "👤 Player",
-                    value = local_player.Name,
-                    inline = true
-                }
-            },
-            timestamp = DateTime.now():ToIsoDate()
-        }}
-    }
-end
-
-
-
 local function handle_post_match()
     local ui_root
     repeat
@@ -371,7 +329,7 @@ local function handle_post_match()
 
     local post_data = {
     username = "Arma's AutoStrat",
-    avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg",
+    avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
     embeds = {{
         title = match.Status == "WIN" and "🏆 TRIUMPH ACHIEVED" or "💀 MATCH FAILED",
         description =
@@ -421,7 +379,7 @@ local function handle_post_match()
 
         footer = {
             text = "Autostrat 3.0 By Arma • Match Result",
-            icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg"
+            icon_url = "https://i.imgur.com/luDHRtf.jpeg"
         },
 
         timestamp = DateTime.now():ToIsoDate()
@@ -429,19 +387,19 @@ local function handle_post_match()
 }
 
 
-pcall(function()
-    send_request({
-        Url = _G.WebhookURL,
-        Method = "POST",
-        Headers = { ["Content-Type"] = "application/json" },
-        Body = game:GetService("HttpService"):JSONEncode(post_data)
-    })
-end)
+    pcall(function()
+        send_request({
+            Url = _G.WebhookURL,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = game:GetService("HttpService"):JSONEncode(post_data)
+        })
+    end)
 
-ongoing_sent = false
-task.wait(1.5)
-send_to_lobby()
+    task.wait(1.5)
 
+    send_to_lobby()
+end
 
 local function log_match_start()
     if not _G.SendWebhook then return end
@@ -450,7 +408,7 @@ local function log_match_start()
     
 local start_payload = {
     username = "Arma's AutoStrat",
-    avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg",
+    avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
     embeds = {{
         title = "🚀 MATCH STARTED",
         description =
@@ -485,13 +443,12 @@ local start_payload = {
 
         footer = {
             text = "Autostrat 3.0 By Arma • Match Start",
-            icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg"
+            icon_url = "https://i.imgur.com/luDHRtf.jpeg"
         },
 
         timestamp = DateTime.now():ToIsoDate()
     }}
 }
-
 
     pcall(function()
         send_request({
@@ -1515,40 +1472,5 @@ end
 start_back_to_lobby()
 start_anti_afk()
 start_rejoin_on_disconnect()
-
-task.spawn(function()
-    while true do
-        task.wait(5)
-
-        if game_state == "GAME"
-        and _G.SendWebhook
-        and type(_G.WebhookURL) == "string"
-        and _G.WebhookURL ~= ""
-        and not ongoing_sent then
-
-            ongoing_sent = true
-
-            -- kirim ongoing tiap 8 menit
-            task.spawn(function()
-                while game_state == "GAME" do
-                    task.wait(ONGOING_INTERVAL)
-
-                    local payload = build_ongoing_payload()
-
-                    pcall(function()
-                        send_request({
-                            Url = _G.WebhookURL,
-                            Method = "POST",
-                            Headers = {
-                                ["Content-Type"] = "application/json"
-                            },
-                            Body = game:GetService("HttpService"):JSONEncode(payload)
-                        })
-                    end)
-                end
-            end)
-        end
-    end
-end)
 
 return TDS
