@@ -1,14 +1,28 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+-- services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService = game:GetService("HttpService")
+
+local local_player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local player_gui = local_player:WaitForChild("PlayerGui")
+
+-- http
+local send_request = request or http_request or httprequest or (GetDevice and GetDevice().request)
+if not send_request then
+    warn("failure: no http function")
+    return
+end
+
 local function identify_game_state()
-    local players = game:GetService("Players")
-    local temp_player = players.LocalPlayer or players.PlayerAdded:Wait()
-    local temp_gui = temp_player:WaitForChild("PlayerGui")
-    
+    local gui = local_player:WaitForChild("PlayerGui")
     while true do
-        if temp_gui:FindFirstChild("LobbyGui") then
+        if gui:FindFirstChild("LobbyGui") then
             return "LOBBY"
-        elseif temp_gui:FindFirstChild("GameGui") then
+        elseif gui:FindFirstChild("GameGui") then
             return "GAME"
         end
         task.wait(1)
@@ -17,12 +31,12 @@ end
 
 local game_state = identify_game_state()
 
-local send_request = request or http_request or httprequest
-    or GetDevice and GetDevice().request
+local function get_current_wave()
+    local label = local_player.PlayerGui
+        .ReactGameTopGameDisplay.Frame.wave.container.value
 
-if not send_request then 
-    warn("failure: no http function") 
-    return 
+    local wave = label.Text:match("(%d+)")
+    return tonumber(wave) or 0
 end
 
 -- // services & main refs
@@ -179,15 +193,15 @@ local function log(text, color)
 end
 
 -- // currency tracking
-local start_coins, current_total_coins, start_gems, current_total_gems = 0, 0, 0, 0
+local start_coins, current_total_coins = 0, 0
+local start_gems, current_total_gems = 0, 0
+
 if game_state == "GAME" then
-    pcall(function()
-        repeat task.wait(1) until local_player:FindFirstChild("Coins")
-        start_coins = local_player.Coins.Value
-        current_total_coins = start_coins
-        start_gems = local_player.Gems.Value
-        current_total_gems = start_gems
-    end)
+    repeat task.wait() until local_player:FindFirstChild("Coins")
+    start_coins = local_player.Coins.Value
+    start_gems = local_player.Gems.Value
+    current_total_coins = start_coins
+    current_total_gems = start_gems
 end
 
 -- // check if remote returned valid
@@ -294,24 +308,15 @@ local function send_to_lobby()
     lobby_remote:FireServer()
 end
 
-local ongoing_sent = false
-local ONGOING_INTERVAL = 480 -- 8 menit
 local function build_ongoing_payload()
     return {
         username = "TDS AutoStrat",
         embeds = {{
             title = "⏳ MATCH IN PROGRESS",
-            description =
-                "━━━━━━━━━━━━━━━━━━\n" ..
-                "**🎮 Tower Defense Simulator**\n" ..
-                "Automated grinding is running\n" ..
-                "━━━━━━━━━━━━━━━━━━",
-
             color = 0xf1c40f,
-
             fields = {
                 {
-                    name = "📊 Current Progress",
+                    name = "📊 Progress",
                     value =
                         "**Wave:** " .. get_current_wave() .. "\n" ..
                         "**Coins:** " .. current_total_coins .. "\n" ..
@@ -319,25 +324,16 @@ local function build_ongoing_payload()
                     inline = true
                 },
                 {
-                    name = "⚙️ Script Status",
-                    value = "🟢 Stable\n🤖 AutoStrat Active",
-                    inline = true
-                },
-                {
                     name = "👤 Player",
                     value = local_player.Name,
-                    inline = false
+                    inline = true
                 }
             },
-
-            footer = {
-                text = "Autostrat By Arma • Match Ongoing"
-            },
-
             timestamp = DateTime.now():ToIsoDate()
         }}
     }
 end
+
 
 
 local function handle_post_match()
@@ -1526,10 +1522,13 @@ task.spawn(function()
 
         if game_state == "GAME"
         and _G.SendWebhook
+        and type(_G.WebhookURL) == "string"
+        and _G.WebhookURL ~= ""
         and not ongoing_sent then
 
             ongoing_sent = true
 
+            -- kirim ongoing tiap 8 menit
             task.spawn(function()
                 while game_state == "GAME" do
                     task.wait(ONGOING_INTERVAL)
@@ -1540,7 +1539,9 @@ task.spawn(function()
                         send_request({
                             Url = _G.WebhookURL,
                             Method = "POST",
-                            Headers = { ["Content-Type"] = "application/json" },
+                            Headers = {
+                                ["Content-Type"] = "application/json"
+                            },
                             Body = game:GetService("HttpService"):JSONEncode(payload)
                         })
                     end)
@@ -1549,6 +1550,5 @@ task.spawn(function()
         end
     end
 end)
-
 
 return TDS
