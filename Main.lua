@@ -289,11 +289,56 @@ end
 
 -- // lobby / teleporting
 local function send_to_lobby()
-    match_started_logged = false -- reset for next game
     task.wait(1)
     local lobby_remote = game.ReplicatedStorage.Network.Teleport["RE:backToLobby"]
     lobby_remote:FireServer()
 end
+
+local ongoing_sent = false
+local ONGOING_INTERVAL = 480 -- 8 menit
+local function build_ongoing_payload()
+    return {
+        username = "TDS AutoStrat",
+        embeds = {{
+            title = "⏳ MATCH IN PROGRESS",
+            description =
+                "━━━━━━━━━━━━━━━━━━\n" ..
+                "**🎮 Tower Defense Simulator**\n" ..
+                "Automated grinding is running\n" ..
+                "━━━━━━━━━━━━━━━━━━",
+
+            color = 0xf1c40f,
+
+            fields = {
+                {
+                    name = "📊 Current Progress",
+                    value =
+                        "**Wave:** " .. get_current_wave() .. "\n" ..
+                        "**Coins:** " .. current_total_coins .. "\n" ..
+                        "**Gems:** " .. current_total_gems,
+                    inline = true
+                },
+                {
+                    name = "⚙️ Script Status",
+                    value = "🟢 Stable\n🤖 AutoStrat Active",
+                    inline = true
+                },
+                {
+                    name = "👤 Player",
+                    value = local_player.Name,
+                    inline = false
+                }
+            },
+
+            footer = {
+                text = "Autostrat By Arma • Match Ongoing"
+            },
+
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+end
+
 
 local function handle_post_match()
     local ui_root
@@ -328,11 +373,11 @@ local function handle_post_match()
         bonus_string = "_No bonus rewards found._"
     end
 
-local post_data = {
-    username = "Arma's Auto Grind",
-    avatar_url = "https://i.imgur.com/luDHRtf.jpeg", -- ganti ke link pinterest direct
+    local post_data = {
+    username = "Arma's AutoStrat",
+    avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg",
     embeds = {{
-        title = match.Status == "WIN" and "🏆 W WIN BOYS" or "💀 BAD RNG",
+        title = match.Status == "WIN" and "🏆 TRIUMPH ACHIEVED" or "💀 MATCH FAILED",
         description =
             "━━━━━━━━━━━━━━━━━━\n" ..
             "**🎮 Tower Defense Simulator**\n" ..
@@ -343,7 +388,7 @@ local post_data = {
 
         fields = {
             {
-                name = "📊 Match Info",
+                name = "📊 Match Summary",
                 value =
                     "**Status:** " .. match.Status .. "\n" ..
                     "**Wave:** " .. match.Wave .. "\n" ..
@@ -352,31 +397,85 @@ local post_data = {
                 inline = true
             },
             {
-                name = "🗺️ Game Details",
-                value =
-                    "**Mode:** Survival\n" ..
-                    "**Map:** Auto Selected\n" ..
-                    "**Difficulty:** Hardcore",
-                inline = true
-            },
-            {
                 name = "💰 Rewards",
                 value =
-                    "🪙 Coins: +" .. match.Coins .. "\n" ..
-                    "💎 Gems: +" .. match.Gems .. "\n" ..
-                    "⭐ XP: +" .. match.XP,
+                    "🪙 **Coins:** +" .. match.Coins .. "\n" ..
+                    "💎 **Gems:** +" .. match.Gems .. "\n" ..
+                    "⭐ **XP:** +" .. match.XP,
                 inline = true
             },
             {
                 name = "🎁 Bonus Drops",
-                value = bonus_string,
+                value = (#match.Others > 0 and bonus_string) or "_No bonus rewards_",
                 inline = false
             },
             {
-                name = "📈 Session Total",
+                name = "📈 Session Totals",
                 value =
-                    "🪙 Coins: " .. current_total_coins .. "\n" ..
-                    "💎 Gems: " .. current_total_gems,
+                    "🪙 **Total Coins:** " .. current_total_coins .. "\n" ..
+                    "💎 **Total Gems:** " .. current_total_gems,
+                inline = true
+            },
+            {
+                name = "👤 Player",
+                value = local_player.Name,
+                inline = true
+            }
+        },
+
+        footer = {
+            text = "Autostrat 3.0 By Arma • Match Result",
+            icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg"
+        },
+
+        timestamp = DateTime.now():ToIsoDate()
+    }}
+}
+
+
+pcall(function()
+    send_request({
+        Url = _G.WebhookURL,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = game:GetService("HttpService"):JSONEncode(post_data)
+    })
+end)
+
+ongoing_sent = false
+task.wait(1.5)
+send_to_lobby()
+
+
+local function log_match_start()
+    if not _G.SendWebhook then return end
+    if type(_G.WebhookURL) ~= "string" or _G.WebhookURL == "" then return end
+    if _G.WebhookURL:find("YOUR%-WEBHOOK") then return end
+    
+local start_payload = {
+    username = "Arma's AutoStrat",
+    avatar_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg",
+    embeds = {{
+        title = "🚀 MATCH STARTED",
+        description =
+            "━━━━━━━━━━━━━━━━━━\n" ..
+            "**🎮 Tower Defense Simulator**\n" ..
+            "AutoStrat execution initialized\n" ..
+            "━━━━━━━━━━━━━━━━━━",
+
+        color = 0x3498db,
+
+        fields = {
+            {
+                name = "🪙 Starting Resources",
+                value =
+                    "🪙 **Coins:** " .. start_coins .. "\n" ..
+                    "💎 **Gems:** " .. start_gems,
+                inline = true
+            },
+            {
+                name = "⚙️ Script Status",
+                value = "🟢 Running\n🤖 Automation Enabled",
                 inline = true
             },
             {
@@ -384,12 +483,13 @@ local post_data = {
                 value =
                     "**Name:** " .. local_player.Name .. "\n" ..
                     "**User ID:** " .. local_player.UserId,
-                inline = true
+                inline = false
             }
         },
 
         footer = {
-            text = "Autostrat 2.0 By Arma • Match Result."
+            text = "Autostrat 3.0 By Arma • Match Start",
+            icon_url = "https://i.pinimg.com/originals/xx/xx/xx.jpg"
         },
 
         timestamp = DateTime.now():ToIsoDate()
@@ -402,122 +502,11 @@ local post_data = {
             Url = _G.WebhookURL,
             Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = game:GetService("HttpService"):JSONEncode(post_data)
-        })
-    end)
-
-    task.wait(1.5)
-
-    send_to_lobby()
-end
-
-local match_logged = false
-
-local function log_match_start()
-    if match_start_sent then return end
-    match_start_sent = true
-
-    if not _G.SendWebhook then return end
-
-    local start_payload = {
-        username = "Arma's Auto Grind",
-        avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
-        embeds = {{
-            title = "🚀 MATCH STARTED",
-            color = 0x3498db,
-
-            fields = {
-                {
-                    name = "🪙 Starting Resources",
-                    value =
-                        "Coins: **" .. start_coins .. "**\n" ..
-                        "Gems: **" .. start_gems .. "**",
-                    inline = true
-                },
-                {
-                    name = "⚙️ Script Status",
-                    value = "🟢 Running\n🧠 AutoStrat Active",
-                    inline = true
-                },
-                {
-                    name = "💼 Loadout",
-                    value = get_equipped_towers(),
-                    inline = false
-                },
-                {
-                    name = "👤 Player",
-                    value =
-                        "**Name:** " .. local_player.Name .. "\n" ..
-                        "**User ID:** " .. local_player.UserId,
-                    inline = true
-                }
-            },
-
-            footer = {
-                text = "Autostrat 2.0 By Arma • Match Start"
-            },
-
-            timestamp = DateTime.now():ToIsoDate()
-        }}
-    }
-
-
-local function start_match_progress_webhook()
-    task.spawn(function()
-        while true do
-            task.wait(480) -- 8 menit
-
-            if game_state ~= "GAME" then continue end
-
-            local payload = {
-                username = "Arma's Auto Grind",
-                avatar_url = "https://i.imgur.com/luDHRtf.jpeg",
-                embeds = {{
-                    title = "⏳ MATCH IN PROGRESS",
-                    color = 0xf1c40f,
-                    fields = {
-                        {
-                            name = "👤 Player",
-                            value = local_player.Name,
-                            inline = true
-                        },
-                        {
-                            name = "🪙 Resources",
-                            value =
-                                "Coins: **" .. local_player.Coins.Value .. "**\n" ..
-                                "Gems: **" .. local_player.Gems.Value .. "**",
-                            inline = true
-                        }
-                    },
-                    footer = {
-                        text = "Autostrat 2.0 By Arma • Ongoing Match"
-                    },
-                    timestamp = DateTime.now():ToIsoDate()
-                }}
-            }
-
-            send_request({
-                Url = _G.Webhook,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = game:GetService("HttpService"):JSONEncode(payload)
-            })
-        end
-    end)
-end
-
-start_match_progress_webhook()
-
-
-    pcall(function()
-        send_request({
-            Url = _G.Webhook,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
             Body = game:GetService("HttpService"):JSONEncode(start_payload)
         })
     end)
 end
+
 -- // voting & map selection
 local function run_vote_skip()
     while true do
@@ -922,7 +911,6 @@ function TDS:Loadout(...)
                 local ok = pcall(function()
                     remote:InvokeServer("Inventory", "Equip", "tower", tower_name)
                     log("Equipped tower: " .. tower_name, "green")
-                    table.insert(equipped_towers, tower_name)
                 end)
                 if ok then
                     success = true
@@ -1531,5 +1519,36 @@ end
 start_back_to_lobby()
 start_anti_afk()
 start_rejoin_on_disconnect()
+
+task.spawn(function()
+    while true do
+        task.wait(5)
+
+        if game_state == "GAME"
+        and _G.SendWebhook
+        and not ongoing_sent then
+
+            ongoing_sent = true
+
+            task.spawn(function()
+                while game_state == "GAME" do
+                    task.wait(ONGOING_INTERVAL)
+
+                    local payload = build_ongoing_payload()
+
+                    pcall(function()
+                        send_request({
+                            Url = _G.WebhookURL,
+                            Method = "POST",
+                            Headers = { ["Content-Type"] = "application/json" },
+                            Body = game:GetService("HttpService"):JSONEncode(payload)
+                        })
+                    end)
+                end
+            end)
+        end
+    end
+end)
+
 
 return TDS
